@@ -2,14 +2,41 @@
 #include "Filters.h"
 
 
+
+ /*     uncomment this when you whant to measure the best threshold for head touch
+ *     it just plot the head touch sensor value and you can open the plotter to see it  
+ *     ----> when you uncomment this other things wont work <----
+ */
+//#define JUST_PLOT_HEAD_TOUCH
+
+//#define REVERSE_MOTOR_BODY
+//#define REVERSE_MOTOR_HEAD
+
+
 /*   PIN DEFINES    */
 #define MOTOR_BODY_PWM 10
-#define MOTOR_BODY_IN1 7
-#define MOTOR_BODY_IN2  8
-
 #define HEAD_MOTOR_PWM 9
-#define HEAD_MOTOR_IN1 12
-#define HEAD_MOTOR_IN2 13
+
+#ifndef REVERSE_MOTOR_BODY
+  #define MOTOR_BODY_IN1 7
+  #define MOTOR_BODY_IN2 8
+#endif
+
+#ifdef REVERSE_MOTOR_BODY
+  #define MOTOR_BODY_IN1 8
+  #define MOTOR_BODY_IN2 7
+#endif
+
+
+#ifndef REVERSE_MOTOR_HEAD
+  #define HEAD_MOTOR_IN1 12
+  #define HEAD_MOTOR_IN2 13
+#endif
+
+#ifdef REVERSE_MOTOR_HEAD
+  #define HEAD_MOTOR_IN1 13
+  #define HEAD_MOTOR_IN2 12
+#endif
 
 
 #define ZERO_CROSSING 11
@@ -26,11 +53,6 @@
 #define HEAD_TOUCH A0
 
 
- /*     uncomment this when you whant to measure the best threshold for head touch
- *     it just plot the head touch sensor value and you can open the plotter to see it  
- *     ----> when you uncomment this other things wont work <----
- */
-//#define JUST_PLOT_HEAD_TOUCH
 
 /*    filters for the head touch sensors      */
 FilterOnePole lowpassFilter( LOWPASS, 1 ); // lowpass filter in 1 hz  for reading the head_touch sensor 
@@ -39,6 +61,7 @@ RunningStatistics lowpassFilterStats;
 uint8_t counter = 0;
 
 uint32_t time_out = 2000;
+uint32_t body_move_time_out = 8000;
 uint32_t befor_loop_time = 0;
 
 uint16_t head_touch_sensor_threshold = 750;
@@ -49,16 +72,16 @@ bool tongue_flag = false;
 
 void open_eye(uint8_t pwm,bool no_error = false);
 
-
-void interrput_encoder_1(){
-  counter++;
-}
-
-
-
-void interrput_encoder_2(){
-
-}
+//
+//void interrput_encoder_1(){
+//  counter++;
+//}
+//
+//
+//
+//void interrput_encoder_2(){
+//
+//}
 
 
 void setup() {
@@ -74,12 +97,12 @@ void setup() {
   pinMode(ZERO_CROSSING,INPUT);
 
   pinMode(HEAD_TOUCH,INPUT);
-  
-  pinMode(ENCODER_1,INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(ENCODER_1),interrput_encoder_1,FALLING);
-  
-  pinMode(ENCODER_2,INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(ENCODER_2),interrput_encoder_1,FALLING);
+
+//  pinMode(ENCODER_1,INPUT_PULLUP);
+//  attachInterrupt(digitalPinToInterrupt(ENCODER_1),interrput_encoder_1,FALLING);
+//  
+//  pinMode(ENCODER_2,INPUT_PULLUP);
+//  attachInterrupt(digitalPinToInterrupt(ENCODER_2),interrput_encoder_1,FALLING);
   
   /*    this motor just move in 1 direction  */
   digitalWrite(MOTOR_BODY_IN1,HIGH);
@@ -92,7 +115,6 @@ void setup() {
   lowpassFilterStats.setWindowSecs( 0.1 );
   
   Serial.begin(9600);
-  Serial.setTimeout(50);  
 
   #ifndef JUST_PLOT_HEAD_TOUCH
     introduction();
@@ -219,13 +241,20 @@ void mouth(uint8_t pwm){
 
 void dance(uint8_t cycle){    // THIS FUNC DONT HAVE TIMEOUT BECAUSE IT TAKE LONGE TIME TO DO THE JOB
   for(uint8_t i = 0 ; i < cycle ; i++){
+    analogWrite(MOTOR_BODY_PWM,255);
+    
+    befor_loop_time = millis();
     while(!digitalRead(ZERO_CROSSING)){
-      analogWrite(MOTOR_BODY_PWM,255);
+      if((millis() - befor_loop_time) > body_move_time_out){
+      analogWrite(MOTOR_BODY_PWM,0);
+      Serial.println("NOT DONE!");
+      return;
+    }
     }  
-    analogWrite(MOTOR_BODY_PWM,0);
-    while(digitalRead(ZERO_CROSSING)); // for get the debounce of the key
-  
+    if(i< cycle - 1)
+      delay(200); 
   }
+  analogWrite(MOTOR_BODY_PWM,0);
   Serial.println("DONE!");
 }
 
